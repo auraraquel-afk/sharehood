@@ -1,4 +1,3 @@
-
 import React, {useEffect, useState} from 'react';
 import {
   ActivityIndicator,
@@ -17,13 +16,13 @@ import {
 
 import LoginScreen from './screens/LoginScreen';
 import RegistroScreen, {DatosRegistro} from './screens/RegistroScreen';
-import {registrarUsuario} from './services/authService';
+import {registrarUsuario} from './services/authService.ts';
 import {
   Sesion,
   cerrarSesion,
   guardarSesion,
   obtenerSesion,
-} from './services/sesion';
+} from './services/sesion.ts';
 
 type Objeto = {
   id: string;
@@ -51,10 +50,8 @@ type Pantalla = 'cargando' | 'login' | 'registro' | 'catalogo';
 function App(): React.JSX.Element {
   const [pantalla, setPantalla] = useState<Pantalla>('cargando');
   const [sesion, setSesion] = useState<Sesion | null>(null);
-
   const [busqueda, setBusqueda] = useState('');
   const [categoria, setCategoria] = useState('Todos');
-
   const [registrando, setRegistrando] = useState(false);
 
   // Al abrir la app: si ya hay una sesión guardada, entra directo al catálogo (RNF08)
@@ -76,14 +73,13 @@ function App(): React.JSX.Element {
     setPantalla('catalogo');
   };
 
-  // Cerrar sesión y borrar datos guardados
   const manejarCerrarSesion = async () => {
     await cerrarSesion();
     setSesion(null);
     setPantalla('login');
   };
 
-  // HU01: RegistroScreen ya validó los datos -> enviarlos a la API vía authService
+  // HU01: RegistroScreen ya validó los datos -> enviarlos a la API
   const manejarRegistroValido = async (datos: DatosRegistro) => {
     if (registrando) {
       return;
@@ -93,7 +89,6 @@ function App(): React.JSX.Element {
 
     try {
       const resultado = await registrarUsuario(datos);
-
       Alert.alert(
         'Registro exitoso',
         `${resultado.mensaje}. Ahora puedes iniciar sesión.`,
@@ -102,9 +97,7 @@ function App(): React.JSX.Element {
     } catch (error) {
       Alert.alert(
         'Error de registro',
-        error instanceof Error
-          ? error.message
-          : 'Ocurrió un error al registrar la cuenta.',
+        error instanceof Error ? error.message : 'Ocurrió un error al registrar la cuenta.',
       );
     } finally {
       setRegistrando(false);
@@ -120,7 +113,6 @@ function App(): React.JSX.Element {
     );
   }
 
-  // Mostrar RegistroScreen
   if (pantalla === 'registro') {
     return (
       <RegistroScreen
@@ -131,7 +123,6 @@ function App(): React.JSX.Element {
     );
   }
 
-  // Mostrar LoginScreen
   if (pantalla === 'login') {
     return (
       <LoginScreen
@@ -490,3 +481,4 @@ const styles = StyleSheet.create({
 });
 
 export default App;
+```[cite: 12, 13, 14, 15, 23]
