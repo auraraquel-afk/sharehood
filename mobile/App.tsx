@@ -121,7 +121,7 @@ function App(): React.JSX.Element {
     );
   }
 
-  // Mostrar LoginScreen
+  // Mostrar LoginScreens
   if (pantalla === 'login') {
     return (
       // error corregido 
