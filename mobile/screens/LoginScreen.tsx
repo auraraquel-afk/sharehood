@@ -1,27 +1,79 @@
+
 import React, { useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  Alert,
+  View,
 } from 'react-native';
 
-const LoginScreen = () => {
+type LoginScreenProps = {
+  onIrARegistro: () => void;
+  onLoginExitoso: (usuario?: any) => void;
+};
+
+// Cambia 10.0.2.2 por tu IPv4 si pruebas en un celular físico en la misma Wi-Fi
+const API_LOGIN = 'http://10.0.2.2:3000/api/login';
+
+const LoginScreen = ({ onIrARegistro, onLoginExitoso }: LoginScreenProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [cargando, setCargando] = useState(false);
 
-  const handleLogin = () => {
-    if (!email || !password) {
+  const handleLogin = async () => {
+    if (cargando) return;
+
+    const correoLimpio = email.trim().toLowerCase();
+
+    if (!correoLimpio || !password) {
       Alert.alert('⚠️ Atención', 'Por favor completa todos los campos');
       return;
     }
-    if (!email.includes('@')) {
+
+    if (!correoLimpio.includes('@')) {
       Alert.alert('⚠️ Correo inválido', 'Ingresa un correo válido');
       return;
     }
-    Alert.alert('✅ Bienvenido', 'Iniciando sesión...');
+
+    setCargando(true);
+
+    try {
+      const respuesta = await fetch(API_LOGIN, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          correo: correoLimpio,
+          email: correoLimpio,
+          contrasena: password,
+          password,
+        }),
+      });
+
+      const resultado = await respuesta.json();
+
+      if (!respuesta.ok) {
+        Alert.alert(
+          '⚠️ Error al iniciar sesión',
+          resultado.mensaje || resultado.message || 'Credenciales incorrectas',
+        );
+        return;
+      }
+
+      setPassword('');
+      onLoginExitoso(resultado.usuario || resultado);
+    } catch (error) {
+      Alert.alert(
+        '⚠️ Error de conexión',
+        'No se pudo conectar con el servidor. Verifica que el backend esté encendido.',
+      );
+    } finally {
+      setCargando(false);
+    }
   };
 
   return (
@@ -45,9 +97,24 @@ const LoginScreen = () => {
         secureTextEntry
       />
 
-      <TouchableOpacity style={styles.boton} onPress={handleLogin}>
-        <Text style={styles.textoBoton}>Ingresar</Text>
+      <TouchableOpacity
+        style={[styles.boton, cargando && styles.botonDeshabilitado]}
+        onPress={handleLogin}
+        disabled={cargando}
+      >
+        {cargando ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.textoBoton}>Ingresar</Text>
+        )}
       </TouchableOpacity>
+
+      <View style={styles.registroContainer}>
+        <Text style={styles.textoRegistro}>¿No tienes cuenta?</Text>
+        <TouchableOpacity onPress={onIrARegistro}>
+          <Text style={styles.enlaceRegistro}>Crear cuenta</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -81,10 +148,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
   },
+  botonDeshabilitado: {
+    opacity: 0.7,
+  },
   textoBoton: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  registroContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 22,
+    gap: 6,
+  },
+  textoRegistro: {
+    fontSize: 14,
+    color: '#666',
+  },
+  enlaceRegistro: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#2196F3',
   },
 });
 
