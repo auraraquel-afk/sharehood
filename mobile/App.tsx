@@ -1,9 +1,11 @@
 
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Platform,
+  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -14,7 +16,14 @@ import {
 } from 'react-native';
 
 import LoginScreen from './screens/LoginScreen';
-import RegistroScreen from './screens/RegistroScreen';
+import RegistroScreen, {DatosRegistro} from './screens/RegistroScreen';
+import {registrarUsuario} from './services/authService';
+import {
+  Sesion,
+  cerrarSesion,
+  guardarSesion,
+  obtenerSesion,
+} from './services/sesion';
 
 type Objeto = {
   id: string;
@@ -37,30 +46,45 @@ const OBJETOS: Objeto[] = [
 const CATEGORIAS = ['Todos', 'Herramientas', 'Hogar', 'Camping', 'Libros'];
 const TABS = ['Catálogo', 'Publicar', 'Solicitudes', 'Perfil'];
 
-// Cambia 10.0.2.2 por tu IPv4 si pruebas en celular físico (misma red Wi-Fi)
-const API_BASE_URL = 'http://10.0.2.2:3000/api';
-const API_REGISTRO = `${API_BASE_URL}/registro`;
+type Pantalla = 'cargando' | 'login' | 'registro' | 'catalogo';
 
 function App(): React.JSX.Element {
-  const [pantalla, setPantalla] = useState<'login' | 'registro' | 'catalogo'>('login');
+  const [pantalla, setPantalla] = useState<Pantalla>('cargando');
+  const [sesion, setSesion] = useState<Sesion | null>(null);
 
   const [busqueda, setBusqueda] = useState('');
   const [categoria, setCategoria] = useState('Todos');
 
   const [registrando, setRegistrando] = useState(false);
 
-  // Abrir pantalla de registro
-  const abrirRegistro = () => {
-    setPantalla('registro');
+  // Al abrir la app: si ya hay una sesión guardada, entra directo al catálogo (RNF08)
+  useEffect(() => {
+    obtenerSesion().then(guardada => {
+      if (guardada) {
+        setSesion(guardada);
+        setPantalla('catalogo');
+      } else {
+        setPantalla('login');
+      }
+    });
+  }, []);
+
+  // HU02: el login fue correcto -> guardar sesión e ir al catálogo
+  const manejarLoginExitoso = async (nuevaSesion: Sesion) => {
+    await guardarSesion(nuevaSesion);
+    setSesion(nuevaSesion);
+    setPantalla('catalogo');
   };
 
-  // Regresar al inicio de sesión
-  const volverAInicioSesion = () => {
+  // Cerrar sesión y borrar datos guardados
+  const manejarCerrarSesion = async () => {
+    await cerrarSesion();
+    setSesion(null);
     setPantalla('login');
   };
 
-  // Recibir los datos validados de RegistroScreen
-  const manejarRegistroValido = async (datos: any) => {
+  // HU01: RegistroScreen ya validó los datos -> enviarlos a la API vía authService
+  const manejarRegistroValido = async (datos: DatosRegistro) => {
     if (registrando) {
       return;
     }
@@ -68,67 +92,52 @@ function App(): React.JSX.Element {
     setRegistrando(true);
 
     try {
-      const respuesta = await fetch(API_REGISTRO, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(datos),
-      });
+      const resultado = await registrarUsuario(datos);
 
-      const resultado = await respuesta.json();
-
-      if (!respuesta.ok) {
-        throw new Error(
-          resultado.message || resultado.mensaje || 'No se pudo completar el registro.',
-        );
-      }
-
-      // Confirmación del backend
       Alert.alert(
         'Registro exitoso',
-        resultado.message ||
-          resultado.mensaje ||
-          '¡Tu cuenta ha sido creada correctamente! Ahora puedes iniciar sesión.',
-        [
-          {
-            text: 'Aceptar',
-            onPress: () => {
-              setPantalla('login');
-            },
-          },
-        ],
+        `${resultado.mensaje}. Ahora puedes iniciar sesión.`,
+        [{text: 'Aceptar', onPress: () => setPantalla('login')}],
       );
     } catch (error) {
-      const mensaje =
+      Alert.alert(
+        'Error de registro',
         error instanceof Error
           ? error.message
-          : 'Ocurrió un error al registrar la cuenta.';
-
-      Alert.alert('Error de registro', mensaje);
+          : 'Ocurrió un error al registrar la cuenta.',
+      );
     } finally {
       setRegistrando(false);
     }
   };
 
+  // Mientras se revisa si hay sesión guardada
+  if (pantalla === 'cargando') {
+    return (
+      <View style={styles.centrado}>
+        <ActivityIndicator size="large" color="#0F766E" />
+      </View>
+    );
+  }
+
   // Mostrar RegistroScreen
   if (pantalla === 'registro') {
     return (
       <RegistroScreen
-        onVolverAInicioSesion={volverAInicioSesion}
+        onVolverAInicioSesion={() => setPantalla('login')}
         onRegistroValido={manejarRegistroValido}
+        cargando={registrando}
       />
     );
   }
 
-  // Mostrar LoginScreens
+  // Mostrar LoginScreen
   if (pantalla === 'login') {
     return (
-      // error corregido 
-     <RegistroScreen
-  onVolverAInicioSesion={() => setPantalla('login')}
-  onRegistroValido={manejarRegistroValido}
-/>
+      <LoginScreen
+        onIrARegistro={() => setPantalla('registro')}
+        onLoginExitoso={manejarLoginExitoso}
+      />
     );
   }
 
@@ -148,7 +157,15 @@ function App(): React.JSX.Element {
           Share<Text style={styles.logoAcento}>Hood</Text>
         </Text>
 
-        <Text style={styles.saludo}>Hola, vecino</Text>
+        <View style={styles.filaSaludo}>
+          <Text style={styles.saludo}>
+            Hola, {sesion?.usuario.nombre.split(' ')[0] || 'vecino'}
+          </Text>
+          <Pressable onPress={manejarCerrarSesion} hitSlop={10}>
+            <Text style={styles.salir}>Cerrar sesión</Text>
+          </Pressable>
+        </View>
+
         <Text style={styles.titulo}>¿Qué necesitas hoy?</Text>
 
         <TextInput
@@ -258,6 +275,26 @@ function App(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
+  centrado: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0FDFA',
+  },
+
+  filaSaludo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  salir: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F766E',
+    marginTop: 12,
+  },
+
   // ESTILOS ORIGINALES DEL CATÁLOGO
   pantalla: {
     flex: 1,
