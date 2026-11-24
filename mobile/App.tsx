@@ -124,10 +124,11 @@ function App(): React.JSX.Element {
   // Mostrar LoginScreen
   if (pantalla === 'login') {
     return (
-      <LoginScreen
-        onIrARegistro={abrirRegistro}
-        onLoginExitoso={() => setPantalla('catalogo')}
-      />
+      // error corregido 
+     <RegistroScreen
+  onVolverAInicioSesion={() => setPantalla('login')}
+  onRegistroValido={manejarRegistroValido}
+/>
     );
   }
 
