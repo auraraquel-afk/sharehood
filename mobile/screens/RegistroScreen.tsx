@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -21,11 +22,13 @@ export type DatosRegistro = {
 type Props = {
   onVolverAInicioSesion?: () => void;
   onRegistroValido?: (datos: DatosRegistro) => void;
+  cargando?: boolean;
 };
 
 export default function RegistroScreen({
   onVolverAInicioSesion,
   onRegistroValido,
+  cargando = false,
 }: Props) {
   const [nombreCompleto, setNombreCompleto] = useState('');
   const [correo, setCorreo] = useState('');
@@ -33,6 +36,10 @@ export default function RegistroScreen({
   const [contrasena, setContrasena] = useState('');
 
   const manejarRegistro = () => {
+    if (cargando) {
+      return;
+    }
+
     if (
       !nombreCompleto.trim() ||
       !correo.trim() ||
@@ -153,12 +160,17 @@ export default function RegistroScreen({
         <Pressable
           accessibilityRole="button"
           onPress={manejarRegistro}
+          disabled={cargando}
           style={({ pressed }) => [
             styles.botonRegistro,
-            pressed && styles.botonPresionado,
+            (pressed || cargando) && styles.botonPresionado,
           ]}
         >
-          <Text style={styles.textoBoton}>Registrarme</Text>
+          {cargando ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.textoBoton}>Registrarme</Text>
+          )}
         </Pressable>
 
         <Text style={styles.terminos}>
